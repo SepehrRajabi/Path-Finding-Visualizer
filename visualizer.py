@@ -9,7 +9,6 @@ WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 PURPLE = (128, 0, 128)
 ORANGE = (255, 165, 0)
-GREY = (128, 128, 128)
 TURQUOISE = (64, 224, 208)
 
 
@@ -43,9 +42,10 @@ class Node:
 
     def make_visited(self):
         self.is_visited = True
-        self.color = YELLOW
+        self.color = BLUE
 
     def make_obstacle(self):
+        self.is_obstacle = True
         self.color = BLACK
 
     def make_start(self):
@@ -138,6 +138,8 @@ def a_star_search(grid, start, end):
 
         current_node.make_visited()
         nodes_to_test.pop(current_node)
+        # making the start node's color green because "technically" we are not visiting the node we are starting on
+        start.make_start()
     
     node = path[-1]
     while node != start:
