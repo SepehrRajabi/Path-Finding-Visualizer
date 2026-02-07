@@ -12,8 +12,8 @@ A visual, interactive pathfinding tool built with **Pygame**. Watch the chosen a
 
 ### TODO
 
-- [ ] Support multiple algorithms (Dijkstra, BFS)
-- [ ] Support multiple heuristics (Manhattan, Euclidean, Chebyshev)
+- [x] Support multiple algorithms (Dijkstra, BFS)
+- [x] Support multiple heuristics (Manhattan, Euclidean, Chebyshev)
 
 ## 🚀 Getting Started
 
