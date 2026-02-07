@@ -21,7 +21,7 @@ MARGIN = 2
 pygame.init()
 window = pygame.display.set_mode(RESOLUTION)
 pygame.display.set_caption("A star algorithm")
-pygame.time.Clock().tick(60)
+clock = pygame.time.Clock()
 
 
 class Node:
@@ -59,23 +59,28 @@ class Node:
 
 
 def check_coords(grid, row, column):
-    row_inbound = 0 <= row and row < len(grid)
-    column_inbound = 0 <= column and column < len(grid[0])
-    
+    row_inbound = 0 <= row < len(grid)
+    column_inbound = 0 <= column < len(grid[0])
+
     return row_inbound and column_inbound
 
 
 def update_neighbors(grid, row, column):
     node = grid[row][column]
-    #                  Down                Up               Left                Right  
-    indecies = [(row - 1, column), (row, column + 1), (row, column - 1), (row + 1, column)]
-    for r, c in indecies:
+    indices = [
+        (row - 1, column),
+        (row, column + 1),
+        (row, column - 1),
+        (row + 1, column)
+    ]
+
+    for r, c in indices:
         if check_coords(grid, row=r, column=c) and not grid[r][c].is_obstacle:
             node.neighbors.append(grid[r][c])
 
 
 def make_grid(total_rows, total_columns):
-    return [[Node(row, column) for row in range(total_rows)] for column in range(total_columns)]
+    return [[Node(row, column) for column in range(total_columns)] for row in range(total_rows)]
 
 
 def draw_grid(window, grid):
@@ -85,12 +90,15 @@ def draw_grid(window, grid):
     for row in range(total_rows):
         for column in range(total_columns):
             node = grid[row][column]
-            pygame.draw.rect(window,
-                             node.color,
-                             [(MARGIN + CELL_WIDTH) * column + MARGIN,
-                              (MARGIN + CELL_HEIGHT) * row + MARGIN,
-                              CELL_WIDTH,
-                              CELL_HEIGHT])
+            pygame.draw.rect(
+                window,
+                node.color,
+                [
+                    (MARGIN + CELL_WIDTH) * column + MARGIN,
+                    (MARGIN + CELL_HEIGHT) * row + MARGIN,
+                    CELL_WIDTH,
+                    CELL_HEIGHT]
+            )
 
 
 def heuristic(node_1, node_2):
@@ -100,27 +108,26 @@ def heuristic(node_1, node_2):
     return abs(x1 - x2) + abs(y1 - y2)
 
 
-# def reconstruct_path(window, path: list):
-#     length = len(path)
-#     for i in range(1, length + 1):
-#         current_node = path[-i]
-#         current_node.make_path()
-#         pygame.draw.line(window, TURQUOISE, start_pos, end_pos)
-
-
-def a_star_search(grid, start, end):
+def a_star_search(window, grid, start, end):
     path = []
     path.append(end)
 
     local_values = {node: float("inf") for row in grid for node in row}
     global_values = {node: float("inf") for row in grid for node in row}
-    
+
     global_values[start] = heuristic(start, end)
     local_values[start] = 0
 
     nodes_to_test = {}
     nodes_to_test[start] = global_values[start]
+
     while nodes_to_test:
+        # Keep the window responsive
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                return []
+
         current_node = min(nodes_to_test, key=nodes_to_test.get)
 
         if current_node == end:
@@ -128,23 +135,41 @@ def a_star_search(grid, start, end):
             break
 
         for neighbor in current_node.neighbors:
-            nodes_to_test[neighbor] = global_values[neighbor]
-            
-            temp_local_value = local_values[current_node] + heuristic(current_node, neighbor)
+            if neighbor.is_visited:
+                continue
+
+            temp_local_value = local_values[current_node] + heuristic(current_node, neighbor)  # nopep8
             if temp_local_value < local_values[neighbor]:
                 neighbor.parent = current_node
                 local_values[neighbor] = temp_local_value
-                global_values[neighbor] = local_values[neighbor] + heuristic(neighbor, end)
+                global_values[neighbor] = local_values[neighbor] + heuristic(neighbor, end)  # nopep8
+
+            nodes_to_test[neighbor] = global_values[neighbor]
 
         current_node.make_visited()
         nodes_to_test.pop(current_node)
-        # making the start node's color green because "technically" we are not visiting the node we are starting on
         start.make_start()
-    
+
+        # Redraw to animate the search
+        draw_grid(window, grid)
+        pygame.display.flip()
+        clock.tick(60)
+
+    # Reconstruct the path
     node = path[-1]
     while node != start:
         path.append(node.parent)
         node = path[-1]
+
+    # Draw the path
+    for node in path:
+        node.make_path()
+        draw_grid(window, grid)
+        pygame.display.flip()
+        clock.tick(60)
+
+    start.make_start()
+    end.make_end()
 
     return path
 
@@ -160,7 +185,8 @@ def main():
     done = False
     while not done:
         draw_grid(window, grid)
-        pygame.display.flip() 
+        pygame.display.flip()
+        clock.tick(60)
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -173,54 +199,52 @@ def main():
                 column = x // (CELL_WIDTH + MARGIN)
                 row = y // (CELL_HEIGHT + MARGIN)
 
-                node = grid[row][column]
+                if row < total_rows and column < total_columns:
+                    node = grid[row][column]
 
-                # setting the start node if it is not already set and the node pressed is not the end node
-                if not start and node != end:
-                    start = node
-                    start.make_start()
+                    if not start and node != end:
+                        start = node
+                        start.make_start()
 
-                # setting the end node if it is not already set and the node pressed is not the start node
-                elif not end and node != start:
-                    end = node
-                    end.make_end()
+                    elif not end and node != start:
+                        end = node
+                        end.make_end()
 
-                # setting the obstacles if the start and end nodes are both chosen
-                elif node != start and node != end:
-                    node.make_obstacle()
+                    elif node != start and node != end:
+                        node.make_obstacle()
 
-            # handle the left mouse button click
-            # right clicking on a node will reset that node
+            # handle the right mouse button click
             elif pygame.mouse.get_pressed()[2]:
                 x, y = pygame.mouse.get_pos()
 
                 column = x // (CELL_WIDTH + MARGIN)
                 row = y // (CELL_HEIGHT + MARGIN)
 
-                node = grid[row][column]
-                node.color = WHITE
+                if row < total_rows and column < total_columns:
+                    node = grid[row][column]
+                    node.color = WHITE
+                    node.is_obstacle = False
+                    node.is_visited = False
 
-                if node == start:
-                    start = None
+                    if node == start:
+                        start = None
 
-                if node == end:
-                    end = None
+                    if node == end:
+                        end = None
 
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_SPACE and start and end:
                     for row in range(total_rows):
                         for column in range(total_columns):
-                            # print(f"{row}, {column} --- updating neighbors")
                             update_neighbors(grid, row, column)
 
-                    a_star_search(grid, start, end)
+                    a_star_search(window, grid, start, end)
 
                 # when the r key is pressed the entire grid is reset
                 if event.key == pygame.K_r:
                     start = None
                     end = None
                     grid = make_grid(total_rows, total_columns)
-                    draw_grid(window, grid)
 
         window.fill(BLACK)
     pygame.quit()
